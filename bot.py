@@ -3,11 +3,10 @@
 import re
 import logging
 import time
-import os
 import queue
 import threading
-
 from typing import Callable
+
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
