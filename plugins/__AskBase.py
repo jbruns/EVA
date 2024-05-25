@@ -11,11 +11,9 @@ class AskBase:
         group: str = "ask",
         system_prompt: str = "",
         emoji_prefix: str = "",
-        imagegen_prefix: str | None = None,
         msg_empty_query: str = "No question provided",
         msg_exception_prefix: Optional[str] = "GENERIC PROBLEMS",
         prompt_required: bool = True,
-        use_imagegen: bool = False,
         main=None,
     ):
         self.system_prompt = system_prompt
@@ -27,7 +25,6 @@ class AskBase:
         self.description = description
         self.triggers = triggers
         self.group = group
-        self.use_imagegen = use_imagegen
         self.prompt_required = prompt_required
         self.setMain(main)
         pass
@@ -45,22 +42,10 @@ class AskBase:
         if not query.strip() and self.prompt_required:
             return self.msg_empty_query, ""
         try:
-            response, media = self.main(query, backend)
-
-            if media and isinstance(media, str):
-                media_return = media
-            else:
-                media_return = (
-                    ""
-                    if (not self.use_imagegen and not media)
-                    else {
-                        "prefix": self.imagegen_prefix,
-                        "content": response,
-                    }
-                )
+            response = self.main(query, backend)
 
             print("###### AskBase response: ", response)
             print("###### AskBase media: ", media_return)
-            return response, media_return
+            return response
         except Exception as e:
             return f"{self.msg_exception_prefix}: " + str(e), ""

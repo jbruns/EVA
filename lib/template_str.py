@@ -1,6 +1,5 @@
 from datetime import datetime
 
-
 def template_str(text: str, **kwargs) -> str:
     """
     A simple template string function.

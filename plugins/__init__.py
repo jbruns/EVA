@@ -1,6 +1,5 @@
 import os
 import importlib
-from rich import print
 
 """
 iterate through the plugins directory for modules and import them

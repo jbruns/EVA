@@ -1,25 +1,20 @@
 from datetime import datetime
 from typing import Optional
 
-# from llama_cpp import Llama
 from ollama import Client
-from backends.BaseBackend import BaseBackend
+
 from lib.config import config
-from plugins import PLUGINS
 from lib.template_str import template_str
+from backends.BaseBackend import BaseBackend
+from plugins import PLUGINS
 
-# load model array from models.json
 LLM_MAX_TOKENS = 2048
-
 
 class OllamaBackend(BaseBackend):
     ##################
     def __init__(self) -> None:
-        # self.model = DEFAULT_MODEL
-        self.model = config["ollama"][
-            "model"
-        ]  # or "spooknik/westlake-7b-v2-laser:q8"
-        self.api_endpoint = config["ollama"]["api_endpoint"]
+        self.model = config['model']
+        self.api_endpoint = config['ollama_api_endpoint']
         self.client = Client(host=self.api_endpoint)
 
         print(f"Using model: {self.model}")
@@ -55,7 +50,7 @@ class OllamaBackend(BaseBackend):
     def query(
         self,
         user_prompt: str,
-        system_prompt: Optional[str] = config["system_prompt"],
+        system_prompt: Optional[str] = config['system_prompt'],
         username: str | None = "User",
         raw: Optional[bool] = False,
     ) -> tuple[str, str]:
@@ -97,10 +92,8 @@ class OllamaBackend(BaseBackend):
                     },
                 ]
 
-            # was raw?
-
             options = {
-                "temperature": config.get("temperature", 0.75),
+                "temperature": config['temperature']
             }
 
             print(f"Messages: {messages}")
@@ -118,9 +111,6 @@ class OllamaBackend(BaseBackend):
             self.last_query_time = tok - tick
 
             response = response["message"]["content"].strip()
-
-            # this is petty
-            response = response.replace("ChatGPT", "ircawp")
 
             # compress multiple newlines down to one
             response = "\n".join(

@@ -47,7 +47,6 @@ plugin = AskBase(
     msg_empty_query="No prompt provided",
     msg_exception_prefix="HELPFUL PROBLEMS",
     main=help,
-    use_imagegen=False,
     group="system",
     prompt_required=False,
 )

@@ -1,14 +1,8 @@
-"""
-Get the bot's uptime and stats.
-"""
-
 import datetime
 from backends.BaseBackend import BaseBackend
 from plugins.__AskBase import AskBase
 
-
 START_TIME = datetime.datetime.now()
-
 
 def uptime(prompt: str, backend: BaseBackend) -> tuple[str, str]:
     from datetime import datetime
@@ -30,7 +24,6 @@ def uptime(prompt: str, backend: BaseBackend) -> tuple[str, str]:
         "",
     )
 
-
 plugin = AskBase(
     name="Uptime",
     description="Get the bot's uptime and stats.",
@@ -40,6 +33,5 @@ plugin = AskBase(
     msg_empty_query="No prompt provided",
     msg_exception_prefix="ARTISTIC PROBLEMS",
     main=uptime,
-    use_imagegen=False,
     prompt_required=False,
 )
