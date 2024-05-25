@@ -22,7 +22,6 @@ plugin = AskPlugin(
     Your shipmate, {username}, is asking for your advice.
     """,
     emoji_prefix="🖖",
-    imagegen_prefix="spock,startrek",
     msg_empty_query="No question provided",
     msg_exception_prefix="ILLOGICAL PROBLEMS",
 )

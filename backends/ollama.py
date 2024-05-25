@@ -14,7 +14,7 @@ class OllamaBackend(BaseBackend):
     ##################
     def __init__(self) -> None:
         self.model = config['model']
-        self.api_endpoint = config['ollama_api_endpoint']
+        self.api_endpoint = config['OLLAMA_API_ENDPOINT']
         self.client = Client(host=self.api_endpoint)
 
         print(f"Using model: {self.model}")
@@ -58,15 +58,12 @@ class OllamaBackend(BaseBackend):
 
         response = ""
 
+        print(f"ollamabackend.query: {username}, {system_prompt}, {user_prompt}")
         try:
             if user_prompt.startswith("/"):
                 return self.process_plugin(user_prompt)
 
-            SYSTEM_PROMPT = (
-                template_str(system_prompt, username=username)
-                if system_prompt
-                else ""
-            )
+            SYSTEM_PROMPT = system_prompt.format(system_prompt, username=username)
 
             USER_PROMPT = user_prompt.strip()
 

@@ -34,7 +34,7 @@ logging.info(f"Log level = {config['log_level']}")
 THREAD_SLEEP = config['thread_sleep']
 logging.info(f"Thread sleep = {config['thread_sleep']}")
 
-logging.info(f"OLLaMa endpoint = {config['ollama_api_endpoint']}")
+logging.info(f"OLLaMa endpoint = {config['OLLAMA_API_ENDPOINT']}")
 
 # globals
 

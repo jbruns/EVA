@@ -18,7 +18,6 @@ class AskBase:
     ):
         self.system_prompt = system_prompt
         self.emoji_prefix = emoji_prefix
-        self.imagegen_prefix = imagegen_prefix
         self.msg_empty_query = msg_empty_query
         self.msg_exception_prefix = msg_exception_prefix
         self.name = name

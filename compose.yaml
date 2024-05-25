@@ -1,0 +1,12 @@
+services:
+  eva:
+    build:
+      context: .
+    volumes:
+      - eva-config:/config
+    environment:
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - OLLAMA_API_ENDPOINT=${OLLAMA_API_ENDPOINT}
+volumes:
+  eva-config:
