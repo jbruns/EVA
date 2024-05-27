@@ -29,82 +29,99 @@ Starting up...
 )
 
 logging.basicConfig(level=config['log_level'])
-logging.info(f"Log level = {config['log_level']}")
+logging.info(f"[config] log_level = {config['log_level']}")
 
 THREAD_SLEEP = config['thread_sleep']
-logging.info(f"Thread sleep = {config['thread_sleep']}")
-
-logging.info(f"OLLaMa endpoint = {config['OLLAMA_API_ENDPOINT']}")
+logging.info(f"[config] thread_sleep = {config['thread_sleep']}")
 
 # globals
 
-logging.debug('Initializing slack queue.')
 slack_queue: queue.Queue = queue.Queue()
-
 backend_instance: BaseBackend | None = None
-
-logging.debug('Initializing slack-bolt.')
 bolt = App(token=config['SLACK_BOT_TOKEN'])
+threads = {}
 
 @bolt.event("app_mention")
-def ingest_event(event, message, client, say, body):
+def handle_mention(event, client, say):
+    # https://api.slack.com/events/app_mention
+    slack_queue.put((event, client, say))
+
+@bolt.event("message")
+def handle_message(event, client, say):
+    # https://api.slack.com/events/message
+    thread_ts = event.get("thread_ts", None) or event["ts"]
+    if isKnownThread(thread_ts):
+        slack_queue.put((event, client, say))
+
+def processQueueItem(event, client, say):
     user_id = event["user"]
     channel = event["channel"]
+    timestamp = event["ts"]
+    thread_ts = event.get("thread_ts", None) or event["ts"]
 
     regex = r"(<.*> )(.*)"
+    if re.match(regex, event['text'], re.MULTILINE) is not None:
+        prompt = re.match(regex, event['text'], re.MULTILINE)[2]
+    else:
+        prompt = event['text']
 
-    prompt = re.match(regex, event["text"], re.MULTILINE)[2]
 
-    logging.debug(f"ingest_event: user_id = {user_id}, channel = {channel}, prompt = {prompt}, say = {say} // adding to queue.")
-    add_to_queue(user_id, channel, prompt, say)
+    logging.debug(f"[processQueueItem]: user_id = {user_id}, channel = {channel}, thread_ts = {thread_ts}, prompt = {prompt}")
 
-def add_to_queue(user_id: str, channel: str, message: str, say: Callable):
-    """
-    Add a message to the queue to be sent to Slack.
+    # get the user's display name from Slack
+    user_display_name = client.users_info(user=user_id)["user"]["profile"]["display_name"]
+    # visual indication that we're working on it
+    client.reactions_add(channel=channel,timestamp=timestamp,name="eyes")
 
-    Args:
-        user_id (str): The user ID of the user who sent the message.
-        channel (str): The channel ID of the channel the message was sent in.
-        message (_type_): _description_
-        say (_type_): _description_
-    """
-    logging.debug("add_to_queue")
-    slack_queue.put((user_id, channel, message, say))
+    # is this a conversation that the bot is already participating in?
+    if isKnownThread(thread_ts):
+        logging.debug(f"[processQueueItem]: using existing thread context ({thread_ts})")
+    else:
+        # set initial context
+        logging.debug(f"[processQueueItem]: new thread context ({thread_ts})")
+        threads[thread_ts] = {}
+        threads[thread_ts]['model'] = config['model']
+        threads[thread_ts]['system'] = config['system_prompt']
+        threads[thread_ts]['messages'] = []
+    
+    # add the latest user message
+    threads[thread_ts]['messages'].append({'role': 'user', 'content': prompt})
+    # bundle the objects to pass to the LLM
+    model = threads[thread_ts]['model']
+    system_prompt = threads[thread_ts]['system'].format(username=user_display_name)
+    messages = threads[thread_ts]['messages']
 
-def process_queue_entry(user_id, channel, prompt, say):
-    logging.info("==========================")
-    logging.info(
-        f"Processing queue entry for {user_id} with prompt '{prompt}'"
-    )
+    logging.debug(f"[processQueueItem]: sending to LLM. {thread_ts}|{model}|{system_prompt}|{messages}")
+    response = backend_instance.query(model,system_prompt,messages)
 
-    print("\n\n>>> Prompt: ", prompt)
+    # add the response from the LLM to the thread context
+    threads[thread_ts]['messages'].append({'role': 'assistant', 'content': response})
 
-    username = bolt.client.users_info(user=user_id)["user"]["profile"]["display_name"]
+    # replace the waiting indicator with the response
+    client.reactions_remove(channel=channel,timestamp=timestamp,name="eyes")
+    say(response,thread_ts=thread_ts)
 
-    response = backend_instance.query(prompt, username=username)
-
-    logging.info(f"<<< Response: '{response}'")
-
-    say(f"<@{user_id}>: {response}")
-
+def isKnownThread(thread_ts):
+    if thread_ts in threads.keys():
+        return True
+    else:
+        return False
+    
 def process_queue():
-    """
-    Process the queue of messages to be sent to Slack until
-    the heat death of the universe. But pause for a bit
-    now and then.
-    """
-    logging.info("Starting queue processing thread...")
-
     while True:
         time.sleep(THREAD_SLEEP)
         if not slack_queue.empty():
-            process_queue_entry(*slack_queue.get())
-
+            processQueueItem(*slack_queue.get())
 
 if __name__ == "__main__":
+    logging.debug("[startup] initializing LLM backend.")
     backend_instance = OllamaBackend()
 
+    logging.debug("[startup] initializing work queue.")
     queue_thread = threading.Thread(target=process_queue, daemon=True)
     queue_thread.start()
 
+    logging.debug('[startup] initializing slack SocketModeHandler.')
     SocketModeHandler(bolt, config['SLACK_APP_TOKEN']).start()
+
+    logging.info["[startup] ready. Listening for events."]

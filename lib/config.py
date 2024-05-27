@@ -36,5 +36,3 @@ def load_config():
     return config
 
 config = load_config()
-
-

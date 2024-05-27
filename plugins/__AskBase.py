@@ -44,7 +44,6 @@ class AskBase:
             response = self.main(query, backend)
 
             print("###### AskBase response: ", response)
-            print("###### AskBase media: ", media_return)
             return response
         except Exception as e:
             return f"{self.msg_exception_prefix}: " + str(e), ""

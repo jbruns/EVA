@@ -1,10 +1,10 @@
+import logging
 from datetime import datetime
 from typing import Optional
 
 from ollama import Client
 
 from lib.config import config
-from lib.template_str import template_str
 from backends.BaseBackend import BaseBackend
 from plugins import PLUGINS
 
@@ -17,13 +17,11 @@ class OllamaBackend(BaseBackend):
         self.api_endpoint = config['OLLAMA_API_ENDPOINT']
         self.client = Client(host=self.api_endpoint)
 
-        print(f"Using model: {self.model}")
+        logging.info(f"[OllamaBackend]: default model = {self.model}")
+        logging.info(f"[OllamaBackend]: ollama_api_endpoint = {config['OLLAMA_API_ENDPOINT']}")
 
     ##################
     def process_plugin(self, cmd_query: str) -> tuple[str, str]:
-        """
-        Processes a plugin query, which is a string starting with a slash.
-        """
         cmd_key = cmd_query.split(" ")[0].strip()[1:]
 
         for func in PLUGINS:
@@ -47,65 +45,27 @@ class OllamaBackend(BaseBackend):
         return "Unknown command. Try `/help`.", ""
 
     ##################
-    def query(
-        self,
-        user_prompt: str,
-        system_prompt: Optional[str] = config['system_prompt'],
-        username: str | None = "User",
-        raw: Optional[bool] = False,
-    ) -> tuple[str, str]:
-        self.username = username
-
-        response = ""
-
-        print(f"ollamabackend.query: {username}, {system_prompt}, {user_prompt}")
+    def query(self, model, system_prompt, messages):
         try:
-            if user_prompt.startswith("/"):
-                return self.process_plugin(user_prompt)
+            self.start_time = datetime.now()
 
-            SYSTEM_PROMPT = system_prompt.format(system_prompt, username=username)
-
-            USER_PROMPT = user_prompt.strip()
-
-            tick = datetime.now()
-
-            if system_prompt:
-                messages = [
-                    {
-                        "role": "system",
-                        "content": SYSTEM_PROMPT,
-                    },
-                    {
-                        "role": "user",
-                        "content": USER_PROMPT,
-                    },
-                ]
-            else:
-                messages = [
-                    {
-                        # NOTE: pulling system from user_prompt is intentional
-                        "role": "system",
-                        "content": USER_PROMPT,
-                    },
-                ]
-
-            options = {
+            self.options = {
                 "temperature": config['temperature']
             }
 
-            print(f"Messages: {messages}")
-            print(f"Options: {options}")
+            messages.insert(0, {'role': 'system', 'content': system_prompt})
 
+            logging.debug(f"[OllamaBackend.query]: sending to ollama. {model}|{messages}|{self.options}")
             response = self.client.chat(
-                model=self.model,
+                model=model,
                 messages=messages,
-                options=options,
+                options=self.options,
                 keep_alive=0,
             )
 
-            tok = datetime.now()
+            self.end_time = datetime.now()
 
-            self.last_query_time = tok - tick
+            self.last_query_time = self.end_time - self.start_time
 
             response = response["message"]["content"].strip()
 
@@ -120,4 +80,4 @@ class OllamaBackend(BaseBackend):
         except RuntimeError as e:
             response = f"**IT HERTZ, IT HERTZ:** '{str(e)}'"
 
-        return response.replace("\n", "\n\n"), ""
+        return response
